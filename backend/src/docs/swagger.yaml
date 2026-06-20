@@ -1,0 +1,434 @@
+openapi: 3.0.3
+info:
+  title: Enterprise User Management System API
+  description: Production-ready API documentation for managing user accounts with compliance audit records.
+  version: 1.0.0
+servers:
+  - url: /api/v1
+    description: V1 Base URL
+paths:
+  /users:
+    post:
+      summary: Create a new user
+      description: Validates and persists a user entity with contact, Aadhaar, and PAN validation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserInput'
+      responses:
+        '201':
+          description: User created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Validation error or malformed request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '409':
+          description: Duplicate Email, Aadhaar, or PAN error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      summary: Get all users with filtering, sorting, and pagination
+      description: Returns a paginated list of non-deleted users (or deleted users if specified).
+      parameters:
+        - name: page
+          in: query
+          description: Page number (starts at 1)
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Page size (max 100)
+          schema:
+            type: integer
+            default: 10
+        - name: search
+          in: query
+          description: Case-insensitive search on name, email, phone, Aadhaar, or PAN.
+          schema:
+            type: string
+        - name: sortBy
+          in: query
+          description: Field to sort by.
+          schema:
+            type: string
+            enum: [name, email, createdAt, status]
+            default: createdAt
+        - name: sortOrder
+          in: query
+          description: Sorting direction.
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+        - name: status
+          in: query
+          description: Filter users by active or inactive status.
+          schema:
+            type: string
+            enum: [ACTIVE, INACTIVE]
+        - name: isDeleted
+          in: query
+          description: Set to true to list soft-deleted users.
+          schema:
+            type: string
+            default: 'false'
+      responses:
+        '200':
+          description: List of users fetched successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUserResponse'
+        '400':
+          description: Invalid query parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: Internal server error.
+
+  /users/{id}:
+    get:
+      summary: Get user details by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID of the user
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Invalid UUID format.
+        '404':
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      summary: Update user details
+      description: Performs full or partial update. Requires `version` in body to prevent concurrency collisions.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID of the user
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserInput'
+      responses:
+        '200':
+          description: User updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Validation error or missing version key.
+        '404':
+          description: User not found.
+        '409':
+          description: Concurrency version conflict or duplicate field conflict.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Soft-delete user
+      description: Flags user as deleted and stores deletion audit timestamps.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID of the user to delete
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User soft-deleted successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '404':
+          description: User not found or already deleted.
+
+  /users/{id}/restore:
+    patch:
+      summary: Restore a soft-deleted user
+      description: Restores user, clearing deleted flags and logs audit updates.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID of the user to restore
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User restored successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '404':
+          description: User is not deleted or does not exist.
+
+components:
+  schemas:
+    CreateUserInput:
+      type: object
+      required:
+        - name
+        - email
+        - primaryMobile
+        - aadhaar
+        - pan
+        - dateOfBirth
+        - placeOfBirth
+        - currentAddress
+        - permanentAddress
+      properties:
+        name:
+          type: string
+          example: Yash Sharma
+        email:
+          type: string
+          format: email
+          example: yash.sharma@example.com
+        primaryMobile:
+          type: string
+          example: '9876543210'
+        secondaryMobile:
+          type: string
+          example: '9812345678'
+          nullable: true
+        aadhaar:
+          type: string
+          example: '123456789012'
+        pan:
+          type: string
+          example: ABCDE1234F
+        dateOfBirth:
+          type: string
+          format: date
+          example: '1995-08-15'
+        placeOfBirth:
+          type: string
+          example: Delhi
+        currentAddress:
+          type: string
+          example: '123 Tech Park, Sector 62, Noida, UP, 201301'
+        permanentAddress:
+          type: string
+          example: '456 Residency Green, Civil Lines, Jaipur, Rajasthan, 302001'
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+          default: ACTIVE
+        remarks:
+          type: string
+          example: Administrator account.
+          nullable: true
+
+    UpdateUserInput:
+      type: object
+      required:
+        - version
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        primaryMobile:
+          type: string
+        secondaryMobile:
+          type: string
+          nullable: true
+        aadhaar:
+          type: string
+        pan:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date
+        placeOfBirth:
+          type: string
+        currentAddress:
+          type: string
+        permanentAddress:
+          type: string
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+        remarks:
+          type: string
+          nullable: true
+        version:
+          type: integer
+          description: Current user version number (used for concurrency prevention).
+          example: 1
+
+    UserResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Operation completed successfully.
+        data:
+          $ref: '#/components/schemas/UserEntity'
+
+    PaginatedUserResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Users listed successfully.
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserEntity'
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+              example: 1
+            limit:
+              type: integer
+              example: 10
+            totalItems:
+              type: integer
+              example: 45
+            totalPages:
+              type: integer
+              example: 5
+
+    UserEntity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+        primaryMobile:
+          type: string
+        secondaryMobile:
+          type: string
+          nullable: true
+        aadhaar:
+          type: string
+        pan:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date-time
+        placeOfBirth:
+          type: string
+        currentAddress:
+          type: string
+        permanentAddress:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+        isDeleted:
+          type: boolean
+        version:
+          type: integer
+        createdBy:
+          type: string
+        updatedBy:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+        remarks:
+          type: string
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: An error message description.
+
+    ValidationErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Validation Error
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                example: email
+              message:
+                type: string
+                example: Invalid email format
