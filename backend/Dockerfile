@@ -4,7 +4,7 @@ FROM node:20-slim AS builder
 WORKDIR /usr/src/app
 
 COPY package*.json ./
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 # Copy Prisma schema first to generate client early (improves caching)
 COPY src/prisma/schema.prisma ./src/prisma/
@@ -26,7 +26,7 @@ WORKDIR /usr/src/app
 
 # Copy package configurations and production dependencies only
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci --only=production --ignore-scripts
 
 # Copy generated Prisma Client from builder stage
 COPY --from=builder /usr/src/app/node_modules/.prisma ./node_modules/.prisma
