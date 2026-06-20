@@ -11,6 +11,7 @@
     "prisma:migrate": "prisma migrate dev --schema=src/prisma/schema.prisma",
     "prisma:studio": "prisma studio --schema=src/prisma/schema.prisma",
     "prisma:seed": "ts-node src/prisma/seed.ts",
+    "postinstall": "prisma generate --schema=src/prisma/schema.prisma",
     "test": "jest --runInBand --detectOpenHandles --forceExit",
     "test:coverage": "jest --runInBand --detectOpenHandles --forceExit --coverage"
   },
