@@ -7,7 +7,7 @@ dotenv.config();
 const envSchema = z.object({
   PORT: z.coerce.number().default(5001),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  DATABASE_URL: z.string().url(),
+  DATABASE_URL: z.string(),
   CORS_ORIGIN: z.string().default('http://localhost:3001'),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(900000), // 15 mins
   RATE_LIMIT_MAX: z.coerce.number().default(100),
