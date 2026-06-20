@@ -4,7 +4,7 @@
   "description": "Enterprise User Management Platform Backend API",
   "main": "dist/server.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp -R src/docs dist/",
     "start": "node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "prisma:generate": "prisma generate --schema=src/prisma/schema.prisma",
