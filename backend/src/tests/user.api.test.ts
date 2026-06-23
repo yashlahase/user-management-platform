@@ -242,4 +242,44 @@ describe('User API Endpoints', () => {
       expect(res.body.data.isDeleted).toBe(false);
     });
   });
+
+  describe('CORS behavior', () => {
+    it('should allow requests with no origin', async () => {
+      const res = await request(app).get('/health');
+      expect(res.status).toBe(200);
+      expect(res.headers['access-control-allow-origin']).toBeUndefined();
+    });
+
+    it('should allow requests from whitelisted origins', async () => {
+      const res = await request(app)
+        .get('/health')
+        .set('Origin', 'http://localhost:3000');
+      expect(res.status).toBe(200);
+      expect(res.headers['access-control-allow-origin']).toBe('http://localhost:3000');
+    });
+
+    it('should allow requests from Vercel preview deployments', async () => {
+      const res = await request(app)
+        .get('/health')
+        .set('Origin', 'https://user-management-platform-gy41guy49-yashlahases-projects.vercel.app');
+      expect(res.status).toBe(200);
+      expect(res.headers['access-control-allow-origin']).toBe('https://user-management-platform-gy41guy49-yashlahases-projects.vercel.app');
+    });
+
+    it('should allow arbitrary localhost origins in non-production environments', async () => {
+      const res = await request(app)
+        .get('/health')
+        .set('Origin', 'http://localhost:9999');
+      expect(res.status).toBe(200);
+      expect(res.headers['access-control-allow-origin']).toBe('http://localhost:9999');
+    });
+
+    it('should block requests from unauthorized domains', async () => {
+      const res = await request(app)
+        .get('/health')
+        .set('Origin', 'https://maliciousdomain.com');
+      expect(res.status).toBe(200);
+      expect(res.headers['access-control-allow-origin']).toBeUndefined();
+    });
+  });
 });

@@ -18,9 +18,33 @@ const app: Express = express();
 app.use(helmet());
 
 // Cross-Origin Resource Sharing
+const allowedOrigins = env.CORS_ORIGIN.split(',').map((o) => o.trim());
+
 app.use(
   cors({
-    origin: env.CORS_ORIGIN === '*' ? '*' : env.CORS_ORIGIN.split(','),
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, or same-origin)
+      if (!origin) return callback(null, true);
+
+      // Check if origin is in the allowed list or if wildcard is enabled
+      const isAllowed = allowedOrigins.some((allowed) => allowed === '*' || allowed === origin);
+
+      // Allow Vercel preview/branch deployments for this project
+      const isVercelPreview =
+        origin.endsWith('.vercel.app') &&
+        (origin.includes('user-management-platform') || origin.includes('yashlahases-projects'));
+
+      // Allow localhost origins in non-production environments
+      const isLocalhost =
+        env.NODE_ENV !== 'production' &&
+        (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:'));
+
+      if (isAllowed || isVercelPreview || isLocalhost) {
+        callback(null, true);
+      } else {
+        callback(null, false);
+      }
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-actor'],
     credentials: true,
